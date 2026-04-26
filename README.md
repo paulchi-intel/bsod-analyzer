@@ -18,18 +18,19 @@ C:\Program Files (x86)\Windows Kits\10\Debuggers\x64\kd.exe
 
 1. Open `chrome://extensions/` → enable **Developer mode**.
 2. **Load unpacked** → select this folder.
-3. Copy the **extension ID** (32 lowercase letters).
 
 ### 3. Register the native messaging host
 
-```powershell
-cd native_host
-powershell -ExecutionPolicy Bypass -File install.ps1 -ExtensionId <EXT_ID>
-```
+The easiest way is to let the extension guide you:
 
-Options: `-PythonExe <path>` · `-Browsers Chrome|Edge|Both` · `-Uninstall`
-
-The **Native host** bar at the top of the side panel turns green on success.
+1. Load the extension and open the side panel.
+2. If the native host is not yet registered, a **🔧 Native Host Setup** dialog appears automatically.
+3. The dialog shows the exact PowerShell command with your Extension ID already filled in:
+   ```powershell
+   powershell -ExecutionPolicy Bypass -File "native_host\install.ps1" -ExtensionId <YOUR_EXT_ID>
+   ```
+4. Click **Copy**, paste it into PowerShell (no admin needed), and press Enter.
+5. Click **Retry** in the dialog — the status bar turns green when the host is found.
 
 ### 4. First-time setup
 
@@ -113,11 +114,3 @@ bsod-analyzer/
     ├── bsod_host.py          # Native messaging host (Python stdlib only)
     └── install.ps1           # HKCU registry installer
 ```
-
----
-
-## Version
-
-- **2.1.0** — Markdown table rendering; report auto-saved to disk + Explorer opens folder; `?` button with language-aware guide pages (繁中/简中/EN); `save_report` native host command.
-- **2.0.0** — Native Messaging host replaces HTTP backend; native `OpenFileDialog` for file picking.
-- **1.0.0** — Initial release with local Python HTTP backend on `localhost:5680`.
