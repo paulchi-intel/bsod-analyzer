@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BSOD Analyzer — 快速分析按鈕說明</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f3f4f6; color: #1f2937;
+      padding: 32px 16px; line-height: 1.7;
+    }
+    .page { max-width: 820px; margin: 0 auto; }
+
+    /* Header */
+    .hero {
+      background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+      color: white; border-radius: 16px; padding: 28px 32px; margin-bottom: 32px;
+    }
+    .hero h1 { font-size: 22px; font-weight: 700; margin-bottom: 6px; }
+    .hero p  { font-size: 14px; opacity: 0.9; }
+
+    /* Section cards */
+    .section {
+      background: white; border-radius: 12px; padding: 24px 28px;
+      margin-bottom: 20px; box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    }
+    .section h2 {
+      font-size: 17px; font-weight: 700; color: #1f2937;
+      margin-bottom: 14px; display: flex; align-items: center; gap: 8px;
+    }
+    .section h3 { font-size: 13px; font-weight: 600; color: #6b7280; margin: 16px 0 6px; }
+
+    /* kd command block */
+    .kd-block {
+      background: #0b1020; color: #a5f3fc; border-radius: 8px;
+      padding: 12px 16px; font-family: 'Cascadia Code', 'Consolas', monospace;
+      font-size: 12.5px; line-height: 1.6; overflow-x: auto; margin: 10px 0;
+      white-space: pre-wrap; word-break: break-all;
+    }
+
+    p  { margin: 8px 0; font-size: 14px; }
+    ul { margin: 8px 0 8px 20px; font-size: 14px; }
+    li { margin: 4px 0; }
+    strong { font-weight: 600; }
+
+    /* Tables */
+    .table-wrap { overflow-x: auto; margin: 12px 0; }
+    table { border-collapse: collapse; width: 100%; font-size: 13px; }
+    th, td { border: 1px solid #e5e7eb; padding: 8px 12px; text-align: left; }
+    th { background: #f3f4f6; font-weight: 600; color: #374151; }
+    tr:nth-child(even) td { background: #f9fafb; }
+
+    /* Flow */
+    .flow {
+      background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 10px;
+      padding: 18px 22px; font-family: 'Cascadia Code', 'Consolas', monospace;
+      font-size: 13px; line-height: 2; white-space: pre;
+    }
+
+    /* Badge */
+    .badge {
+      display: inline-block; background: #ede9fe; color: #5b21b6;
+      font-size: 11px; font-weight: 600; padding: 2px 8px;
+      border-radius: 20px; margin-left: 6px;
+    }
+
+    .note {
+      background: #fef3c7; border: 1px solid #fcd34d; border-radius: 8px;
+      padding: 10px 14px; font-size: 13px; color: #78350f; margin: 12px 0;
+    }
+  </style>
+</head>
+<body>
+<div class="page">
+
+  <div class="hero">
+    <h1>BSOD Analyzer — 快速分析按鈕說明</h1>
+    <p>選取 <code style="background:rgba(255,255,255,0.2);padding:1px 6px;border-radius:4px">.dmp</code> 檔案後，側邊欄會出現 8 個快速分析按鈕。每個按鈕背後都是預設的 <code style="background:rgba(255,255,255,0.2);padding:1px 6px;border-radius:4px">kd.exe</code> 指令組合，執行完畢後會自動把原始輸出送給 AI 進行解讀。</p>
+  </div>
+
+  <!-- 1 -->
+  <div class="section">
+    <h2>🧠 完整 Triage + AI 摘要 <span class="badge">優先執行</span></h2>
+    <h3>kd 指令</h3>
+    <div class="kd-block">vertarget; .bugcheck; !analyze -v; kb 100; lm t n; !irql; !sysinfo smbios; !cpuinfo</div>
+    <p>「全套掃描」按鈕。一次執行最常用的 8 條指令，涵蓋：OS 版本確認、Bugcheck 代碼、詳細錯誤分析、Call Stack、載入模組清單、目前 IRQL、系統硬體資訊（SMBIOS）、CPU 詳細資訊。AI 收到這批資料後，會輸出：</p>
+    <ul>
+      <li>Bugcheck 代碼與名稱</li>
+      <li>一行根因摘要</li>
+      <li>肇事模組與驅動程式類型</li>
+      <li>關鍵證據引用</li>
+      <li>3–5 條後續建議的 kd 指令</li>
+    </ul>
+    <div class="note">第一次拿到不熟悉的 dump，或時間有限需要快速定性時，<strong>優先點這個</strong>。它的輸出足以應付 80% 的常見問題，並替後續深挖提供方向。</div>
+  </div>
+
+  <!-- 2 -->
+  <div class="section">
+    <h2>🔍 !analyze -v</h2>
+    <h3>kd 指令</h3>
+    <div class="kd-block">.bugcheck; !analyze -v</div>
+    <p>單獨執行 WinDbg 最核心的自動分析指令。<code>.bugcheck</code> 先列出 Bugcheck 代碼及四個參數（Arg1–Arg4），<code>!analyze -v</code> 則進行詳盡的錯誤分析：</p>
+    <ul>
+      <li>Bugcheck 名稱與機制說明</li>
+      <li>失敗的記憶體位址、PFN</li>
+      <li>Faulting module（名稱、版本）</li>
+      <li>Stack trace 摘要</li>
+      <li>Failure Bucket（問題指紋，可用於比對已知 KB）</li>
+    </ul>
+    <p>AI 會解讀代碼與參數、判斷肇事模組是 inbox（Windows 原生）、第三方或已知問題驅動。</p>
+    <div class="note">當你已知大方向，想精準確認肇事驅動與 Arg 意義時使用。也適合在「完整 Triage」之後，對某個可疑驅動做二次確認。</div>
+  </div>
+
+  <!-- 3 -->
+  <div class="section">
+    <h2>📚 Call Stack (kb 100)</h2>
+    <h3>kd 指令</h3>
+    <div class="kd-block">kb 100; !thread</div>
+    <p><code>kb 100</code> 顯示崩潰當下最多 100 個 stack frame，每個 frame 包含返回地址、函數名稱（需符號）和前三個參數。<code>!thread</code> 則輸出目前執行緒的完整資訊。AI 會對每個 frame 逐一標注，並：</p>
+    <ul>
+      <li>指出崩潰發生點（最高的有效 frame）</li>
+      <li>標記 user-mode / kernel 切換點</li>
+      <li>高亮任何第三方驅動 frame</li>
+    </ul>
+    <div class="note">當 <code>!analyze -v</code> 指向的驅動看起來像「受害者」而非「兇手」，需要回溯 call chain 才能找到真正的呼叫來源時使用。</div>
+  </div>
+
+  <!-- 4 -->
+  <div class="section">
+    <h2>💻 載入模組 (lm t n)</h2>
+    <h3>kd 指令</h3>
+    <div class="kd-block">lm t n</div>
+    <p>列出崩潰當下記憶體中所有已載入的模組，包含基底位址、大小、名稱、路徑與符號狀態。AI 會從清單中標記：</p>
+    <ul>
+      <li>第三方驅動（非 Microsoft）</li>
+      <li>可由日期推測過時或未簽署的驅動</li>
+      <li>已知高風險類別：防毒軟體、VPN、RGB 控制、超頻工具</li>
+      <li>建議用 <code>lmvm &lt;模組名&gt;</code> 進一步查詢的項目</li>
+    </ul>
+    <div class="note">系統環境複雜（安裝大量第三方軟體），或 <code>!analyze -v</code> 指向的模組版本太舊時使用。</div>
+  </div>
+
+  <!-- 5 -->
+  <div class="section">
+    <h2>🖥️ 系統 / CPU / BIOS</h2>
+    <h3>kd 指令</h3>
+    <div class="kd-block">vertarget; !sysinfo smbios; !cpuinfo</div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>指令</th><th>輸出內容</th></tr></thead>
+        <tbody>
+          <tr><td><code>vertarget</code></td><td>Windows OS 版本、Build 號、Service Pack、記憶體大小</td></tr>
+          <tr><td><code>!sysinfo smbios</code></td><td>BIOS 版本/日期、主機板製造商與型號、系統序號</td></tr>
+          <tr><td><code>!cpuinfo</code></td><td>CPU 家族、型號、Stepping、Microcode 版本</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="note">懷疑是 BIOS bug 或 Microcode 問題、需確認系統基本資料填寫 bug report 時使用。</div>
+  </div>
+
+  <!-- 6 -->
+  <div class="section">
+    <h2>🧮 記憶體 / Pool</h2>
+    <h3>kd 指令</h3>
+    <div class="kd-block">!vm; !poolused 2; !memusage 0</div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>指令</th><th>輸出內容</th></tr></thead>
+        <tbody>
+          <tr><td><code>!vm</code></td><td>虛擬記憶體統計：總可用 VA、已提交、Paged/NonPaged Pool 大小與上限</td></tr>
+          <tr><td><code>!poolused 2</code></td><td>按 Pool Tag 分類的 NonPaged Pool 用量，依大小降冪，用於找洩漏來源</td></tr>
+          <tr><td><code>!memusage 0</code></td><td>實體記憶體頁面使用摘要（可用、已使用、Transition、Modified 等）</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="note">Bugcheck 是 <code>POOL_CORRUPTION</code> / <code>OUT_OF_MEMORY</code> 相關，或懷疑有記憶體洩漏（跑一段時間後才 BSOD）時使用。</div>
+  </div>
+
+  <!-- 7 -->
+  <div class="section">
+    <h2>🧵 目前 Thread / IRQL</h2>
+    <h3>kd 指令</h3>
+    <div class="kd-block">!thread; !irql; kv</div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>指令</th><th>輸出內容</th></tr></thead>
+        <tbody>
+          <tr><td><code>!thread</code></td><td>目前執行緒的完整資訊：TEB、狀態、等待鏈、stack 指標</td></tr>
+          <tr><td><code>!irql</code></td><td>目前 IRQL，顯示發生崩潰時的中斷等級</td></tr>
+          <tr><td><code>kv</code></td><td>Verbose call stack，包含 frame pointer 與 trap/exception frame 標記</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="note">Bugcheck 是 <code>IRQL_NOT_LESS_OR_EQUAL</code>，或 <code>!analyze -v</code> 顯示 IRQL 為 2（DISPATCH_LEVEL）以上，懷疑 DPC / ISR 有問題時使用。</div>
+  </div>
+
+  <!-- 8 -->
+  <div class="section">
+    <h2>📄 產生 Markdown 報告</h2>
+    <p>這個按鈕<strong>不執行任何新的 kd 指令</strong>，而是把本次 session 中所有已收集到的 kd 輸出一次餵給 AI，要求產生一份結構化的 Markdown 分析報告，包含：</p>
+    <ul>
+      <li><strong>Bugcheck Summary</strong>（表格：代碼、名稱、說明、Arg1-4、Failure Bucket）</li>
+      <li><strong>Root Cause</strong>（單行摘要）</li>
+      <li><strong>System Information</strong>（製造商、型號、BIOS、CPU、OS）</li>
+      <li><strong>Faulting Component</strong>（模組、符號、驅動類型）</li>
+      <li><strong>Call Stack</strong>（逐 frame 標注）</li>
+      <li><strong>Evidence</strong>（引用原始 kd 輸出片段）</li>
+      <li><strong>Recommendations</strong>（驅動版本、KB 號、BIOS URL、registry 設定）</li>
+      <li><strong>Confidence &amp; Residual Uncertainty</strong></li>
+    </ul>
+    <p>缺少的欄位會填入「N/A」，AI 不會憑空捏造數值。報告同時會自動儲存為 <code>.md</code> 檔案，並在檔案總管中開啟所在資料夾。</p>
+    <div class="note">⚠️ 若 session 中完全沒有執行過任何其他按鈕，會出現提示要求先執行至少一個分析步驟。</div>
+  </div>
+
+  <!-- Flow -->
+  <div class="section">
+    <h2>📋 建議流程</h2>
+    <div class="flow">1. 選取 .dmp
+     ↓
+2. 🧠 完整 Triage + AI 摘要   ← 必做，得到全局概覽
+     ↓
+3. 根據 AI 建議，選擇性執行：
+   ├─ 懷疑驅動問題    → 💻 載入模組
+   ├─ Call Stack 需深挖 → 📚 Call Stack
+   ├─ 疑似記憶體洩漏  → 🧮 記憶體 / Pool
+   ├─ IRQL 相關崩潰   → 🧵 目前 Thread / IRQL
+   └─ 需確認硬體規格  → 🖥️ 系統 / CPU / BIOS
+     ↓
+4. 💬 自由提問（對話框可繼續追問）
+     ↓
+5. 📄 產生 Markdown 報告      ← 最後一步，輸出正式報告</div>
+    <p style="margin-top:12px;font-size:13px;color:#6b7280">各按鈕的輸出會在 session 中累積，後續按鈕與自由提問都能引用前面已收集的資料，不需重複執行。</p>
+  </div>
+
+</div>
+</body>
+</html>

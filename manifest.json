@@ -1,0 +1,26 @@
+{
+  "manifest_version": 3,
+  "name": "BSOD Analyzer",
+  "version": "2.1.0",
+  "description": "AI-powered Windows kernel crash dump analyzer. Pick a MEMORY.DMP, run kd.exe via a native messaging host, and get GNAI-assisted bugcheck / stack / module analysis.",
+  "permissions": [
+    "storage",
+    "sidePanel",
+    "nativeMessaging",
+    "tabs"
+  ],
+  "host_permissions": [
+    "https://gnai.intel.com/*"
+  ],
+  "action": {
+    "default_title": "BSOD Analyzer - Kernel Crash Dump Analyst"
+  },
+  "side_panel": {
+    "default_path": "sidepanel.html"
+  },
+  "options_page": "options.html",
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  }
+}

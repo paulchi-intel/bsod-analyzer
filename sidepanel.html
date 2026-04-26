@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BSOD Analyzer</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+      background: #f3f4f6; color: #1f2937; height: 100vh; display: flex; flex-direction: column;
+    }
+
+    /* ===== Header ===== */
+    .header-bar {
+      background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+      padding: 12px 16px; display: flex; justify-content: space-between; align-items: center;
+      color: white; box-shadow: 0 2px 4px rgba(0,0,0,0.1); gap: 8px;
+    }
+    .header-title {
+      font-size: 16px; font-weight: 600; white-space: nowrap;
+      cursor: pointer; user-select: none; transition: opacity 0.2s;
+    }
+    .header-title:hover { opacity: 0.85; }
+    .header-controls { display: flex; gap: 8px; align-items: center; min-width: 0; }
+    .header-btn {
+      padding: 6px 12px; background: transparent; border: 1px solid rgba(255,255,255,0.35);
+      color: white; font-size: 12px; cursor: pointer; border-radius: 6px; transition: all 0.2s;
+      white-space: nowrap;
+    }
+    .header-btn:hover { background: rgba(255,255,255,0.2); }
+    .header-btn.icon-btn { padding: 5px 9px; font-size: 14px; line-height: 1; }
+    .model-selector, .language-selector {
+      border: 1px solid rgba(255,255,255,0.35); background: rgba(255,255,255,0.12);
+      color: white; border-radius: 8px; padding: 5px 20px 5px 8px; font-size: 12px;
+      font-weight: 600; cursor: pointer; min-width: 60px;
+    }
+    .model-selector { min-width: 130px; max-width: 160px; }
+    .language-selector { min-width: 62px; width: 62px; }
+    .model-selector option, .language-selector option { color: #1f2937; }
+
+    /* ===== Status ===== */
+    .status-bar {
+      padding: 8px 16px; background: #fff; border-bottom: 1px solid #e5e7eb;
+      font-size: 12px; color: #6b7280; display: flex; align-items: center; gap: 8px;
+    }
+    .status-indicator { width: 8px; height: 8px; border-radius: 50%; background: #10b981; flex-shrink: 0; }
+    .status-indicator.loading { background: #f59e0b; animation: pulse 1.5s ease-in-out infinite; }
+    .status-indicator.error { background: #ef4444; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+    /* ===== Host Bar ===== */
+    .host-bar {
+      padding: 8px 16px; background: #fff; border-bottom: 1px solid #e5e7eb;
+      font-size: 12px; color: #6b7280; display: flex; align-items: center; gap: 8px;
+    }
+    .host-bar.connected { background: #ecfdf5; border-color: #a7f3d0; color: #065f46; }
+    .host-bar.disconnected { background: #fef2f2; border-color: #fecaca; color: #991b1b; }
+
+    /* ===== File Drop Zone ===== */
+    .file-drop-zone {
+      border: 2px dashed #d1d5db; border-radius: 10px; padding: 14px 10px;
+      text-align: center; cursor: pointer; transition: all 0.2s; position: relative;
+      background: #f9fafb; display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .file-drop-zone:hover { border-color: #8b5cf6; background: #f5f3ff; }
+    .file-drop-zone.drag-over { border-color: #3b82f6; background: #eff6ff; border-style: solid; }
+    .file-drop-zone.has-file { border-color: #10b981; background: #ecfdf5; border-style: solid; }
+    .file-drop-zone input[type="file"] { display: none; }
+    .file-drop-zone-icon { font-size: 28px; margin-bottom: 4px; pointer-events: none; }
+    .file-drop-zone-label { font-size: 13px; font-weight: 600; color: #374151; pointer-events: none; }
+    .file-drop-zone-hint { font-size: 11px; color: #6b7280; margin-top: 3px; pointer-events: none; }
+    .file-drop-zone-filename {
+      font-size: 12px; color: #065f46; margin-top: 6px; font-weight: 600;
+      max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 0 4px;
+      pointer-events: none;
+    }
+    .file-drop-zone-remove {
+      position: absolute; top: 4px; right: 6px; background: none; border: none;
+      font-size: 14px; color: #9ca3af; cursor: pointer; padding: 2px 6px; border-radius: 4px;
+      display: none;
+    }
+    .file-drop-zone.has-file .file-drop-zone-remove { display: block; }
+    .file-drop-zone-remove:hover { background: #fee2e2; color: #dc2626; }
+
+    /* ===== Chat / Main ===== */
+    .main-container { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-height: 0; }
+    .messages-container {
+      flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px;
+    }
+    .message {
+      max-width: 90%; padding: 10px 14px; border-radius: 12px;
+      font-size: 13px; line-height: 1.55; word-wrap: break-word;
+    }
+    .message.user {
+      align-self: flex-end;
+      background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+      color: white; border-bottom-right-radius: 4px;
+    }
+    .message.assistant {
+      align-self: flex-start; background: #fff; border: 1px solid #e5e7eb;
+      color: #1f2937; border-bottom-left-radius: 4px;
+    }
+    .message.system {
+      align-self: center; background: #f3f4f6; color: #6b7280;
+      font-size: 12px; padding: 6px 12px; border-radius: 16px; max-width: 90%; text-align: center;
+    }
+    .message.kd {
+      align-self: stretch; max-width: 100%;
+      background: #0b1020; border: 1px solid #1f2937; color: #e2e8f0;
+      font-family: 'Cascadia Code','Consolas',monospace; font-size: 12px; line-height: 1.6;
+      padding: 12px 14px; border-radius: 8px; white-space: pre-wrap;
+      min-height: 15lh;
+      overflow-x: auto;
+    }
+    .message.assistant p { margin: 8px 0; }
+    .message.assistant p:first-child { margin-top: 0; }
+    .message.assistant p:last-child { margin-bottom: 0; }
+    .message.assistant ul, .message.assistant ol { margin: 8px 0; padding-left: 20px; }
+    .message.assistant li { margin: 3px 0; }
+    .message.assistant code {
+      background: #f3f4f6; padding: 2px 6px; border-radius: 4px;
+      font-family: 'Cascadia Code','Consolas',monospace; font-size: 12px; color: #6d28d9;
+    }
+    .message.assistant pre {
+      background: #0b1020; color: #e2e8f0; padding: 10px 12px; border-radius: 8px;
+      overflow-x: auto; margin: 8px 0; font-size: 11px; line-height: 1.4;
+    }
+    .message.assistant pre code { background: transparent; color: inherit; padding: 0; }
+    .message.assistant strong { font-weight: 600; }
+    .message.assistant h3 { font-size: 14px; font-weight: 700; margin: 12px 0 6px; color: #6d28d9; }
+    .message.assistant h3:first-child { margin-top: 0; }
+    .message.assistant h2 { font-size: 15px; font-weight: 700; margin: 14px 0 8px; color: #5b21b6; }
+    .message.assistant .table-wrapper { overflow-x: auto; margin: 8px 0; }
+    .message.assistant table { border-collapse: collapse; width: 100%; font-size: 12px; white-space: nowrap; }
+    .message.assistant th, .message.assistant td { border: 1px solid #e5e7eb; padding: 5px 10px; text-align: left; }
+    .message.assistant th { background: #f3f4f6; color: #374151; font-weight: 600; }
+    .message.assistant td { color: #1f2937; }
+    .message.assistant tr:nth-child(even) td { background: #f9fafb; }
+
+    /* Quick Actions */
+    .quick-actions {
+      margin: 16px; padding: 16px; background: #f9fafb; border-radius: 12px;
+      border: 2px dashed #d1d5db;
+    }
+    .quick-actions-title {
+      font-size: 13px; font-weight: 600; color: #6b7280; margin-bottom: 12px;
+      display: flex; align-items: center; justify-content: center; gap: 6px;
+    }
+    .qa-help-btn {
+      width: 18px; height: 18px; border-radius: 50%;
+      background: #fef08a; border: none; color: #111827;
+      font-size: 11px; font-weight: 700; line-height: 1;
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+      transition: all 0.2s; flex-shrink: 0; padding: 0;
+      position: relative;
+    }
+    .qa-help-btn:hover { background: #fde047; color: #111827; }
+    .qa-help-btn[title]:hover::after {
+      content: attr(title);
+      position: absolute; bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%);
+      background: #fef08a; color: #111827; font-size: 11px; font-weight: 600;
+      padding: 4px 8px; border-radius: 6px; white-space: nowrap;
+      pointer-events: none; z-index: 200;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+    }
+    .quick-actions-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .quick-action-btn {
+      padding: 10px 12px; background: white; border: 1px solid #e5e7eb; border-radius: 8px;
+      font-size: 12px; color: #374151; cursor: pointer; transition: all 0.2s;
+      text-align: left; font-family: inherit; line-height: 1.35;
+    }
+    .quick-action-btn:hover:not(:disabled) {
+      background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%); color: white;
+      border-color: transparent; transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(59,130,246,0.3);
+    }
+    .quick-action-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    /* Tooltip */
+    .quick-action-btn[data-tooltip] { position: relative; }
+    .quick-action-btn[data-tooltip]::after {
+      content: attr(data-tooltip);
+      position: absolute; bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%);
+      background: #fef08a; color: #111827; font-size: 11px; line-height: 1.45;
+      padding: 6px 9px; border-radius: 6px; white-space: normal; width: 200px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.25); pointer-events: none;
+      opacity: 0; transition: opacity 0.15s; z-index: 100;
+    }
+    .quick-action-btn[data-tooltip]:hover:not(:disabled)::after { opacity: 1; }
+
+    /* Saved Prompts Section */
+    .saved-prompts-section {
+      margin: 0 16px 16px; padding: 14px 16px;
+      background: #fef3c7; border-radius: 12px; border: 2px dashed #fbbf24;
+    }
+    .saved-prompts-header {
+      display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;
+    }
+    .saved-prompts-title { font-size: 13px; font-weight: 600; color: #92400e; }
+    .manage-prompts-btn {
+      padding: 4px 12px; background: white; border: 1px solid #fbbf24;
+      border-radius: 6px; font-size: 12px; color: #92400e; cursor: pointer;
+      transition: all 0.2s; font-weight: 500;
+    }
+    .manage-prompts-btn:hover { background: #fbbf24; color: white; }
+    .saved-prompts-list { display: flex; flex-direction: column; gap: 6px; }
+    .saved-prompt-btn {
+      padding: 9px 12px; background: white; border: 1px solid #fcd34d;
+      border-radius: 8px; font-size: 12px; color: #78350f; cursor: pointer;
+      transition: all 0.2s; text-align: left; font-family: inherit; line-height: 1.4;
+    }
+    .saved-prompt-btn:hover {
+      background: #fbbf24; color: white; border-color: #f59e0b;
+      transform: translateY(-1px); box-shadow: 0 2px 8px rgba(251,191,36,0.3);
+    }
+    .empty-saved-prompts { text-align: center; padding: 10px; color: #92400e; font-size: 12px; }
+
+    /* Saved Prompts Modal internals */
+    .saved-prompt-item {
+      display: flex; gap: 8px; padding: 10px; background: #f9fafb;
+      border: 1px solid #e5e7eb; border-radius: 8px; transition: all 0.2s;
+    }
+    .saved-prompt-item:hover { background: #f3f4f6; border-color: #d1d5db; }
+    .saved-prompt-text {
+      flex: 1; font-size: 13px; color: #1f2937; line-height: 1.5;
+      cursor: pointer; word-break: break-word;
+    }
+    .saved-prompt-actions { display: flex; gap: 4px; align-items: flex-start; }
+    .prompt-action-btn {
+      background: none; border: none; padding: 4px 8px; cursor: pointer;
+      font-size: 16px; border-radius: 4px; transition: all 0.2s;
+    }
+    .prompt-action-btn:hover { background: #e5e7eb; }
+    .add-prompt-section { border-top: 2px solid #e5e7eb; padding-top: 14px; margin-top: 4px; }
+    .add-prompt-section textarea {
+      width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 8px;
+      font-size: 13px; font-family: inherit; resize: vertical; margin-bottom: 10px; min-height: 72px;
+    }
+    .add-prompt-section textarea:focus { outline: none; border-color: #3b82f6; }
+    .add-prompt-btn {
+      width: 100%; padding: 10px;
+      background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+      color: white; border: none; border-radius: 8px;
+      font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.2s;
+    }
+    .add-prompt-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(59,130,246,0.4); }
+    .empty-prompts { text-align: center; padding: 32px 20px; color: #9ca3af; }
+    .empty-prompts-icon { font-size: 32px; margin-bottom: 10px; }
+    .empty-prompts-text { font-size: 13px; }
+
+    /* Input */
+    .input-container {
+      padding: 12px 16px; background: white; border-top: 1px solid #e5e7eb;
+      display: flex; gap: 8px;
+    }
+    #messageInput {
+      width: 100%; padding: 10px 14px; border: 2px solid #e5e7eb; border-radius: 8px;
+      font-size: 14px; font-family: inherit; resize: none; max-height: 120px; min-height: 42px;
+      transition: border-color 0.2s; background: #fff; color: #1f2937;
+    }
+    #messageInput:focus { outline: none; border-color: #3b82f6; }
+    #sendBtn {
+      padding: 10px 20px;
+      background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+      color: white; border: none; border-radius: 8px; font-size: 14px; font-weight: 600;
+      cursor: pointer; transition: all 0.2s; white-space: nowrap;
+    }
+    #sendBtn:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(59,130,246,0.4); }
+    #sendBtn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+    /* Empty State */
+    .empty-state {
+      flex: 1; display: flex; flex-direction: column; align-items: center;
+      justify-content: center; color: #9ca3af; padding: 20px; text-align: center;
+    }
+    .empty-state-icon { font-size: 48px; margin-bottom: 16px; }
+    .empty-state-title { font-size: 16px; font-weight: 600; color: #6b7280; margin-bottom: 8px; }
+    .empty-state-text { font-size: 13px; line-height: 1.5; max-width: 300px; }
+
+    /* Session restore overlay */
+    .restore-overlay {
+      position: absolute; inset: 0; background: rgba(243,244,246,0.88);
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 14px; z-index: 50;
+    }
+    .restore-spinner {
+      width: 36px; height: 36px; border-radius: 50%;
+      border: 3px solid #e5e7eb; border-top-color: #8b5cf6;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .restore-label { font-size: 13px; font-weight: 600; color: #6b7280; }
+
+    /* Scrollbar */
+    .messages-container::-webkit-scrollbar,
+    .message.kd::-webkit-scrollbar,
+    .settings-panel::-webkit-scrollbar { width: 8px; }
+    .messages-container::-webkit-scrollbar-track,
+    .settings-panel::-webkit-scrollbar-track { background: #f3f4f6; }
+    .messages-container::-webkit-scrollbar-thumb,
+    .settings-panel::-webkit-scrollbar-thumb {
+      background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%); border-radius: 4px;
+    }
+    .messages-container::-webkit-scrollbar-thumb:hover,
+    .settings-panel::-webkit-scrollbar-thumb:hover {
+      background: linear-gradient(135deg, #2563eb 0%, #7c3aed 100%);
+    }
+
+    /* ===== Settings Panel ===== */
+    .settings-panel {
+      display: none; background: #fff; border-bottom: 1px solid #e5e7eb;
+      padding: 14px 16px; max-height: 0; overflow: hidden;
+      transition: max-height 0.3s ease, padding 0.3s ease;
+    }
+    .settings-panel.show { display: block; max-height: 75vh; overflow-y: auto; }
+    .settings-section-title {
+      font-size: 13px; font-weight: 600; color: #6b7280;
+      margin-bottom: 10px;
+    }
+    .settings-field { margin-bottom: 10px; }
+    .settings-field label {
+      display: block; font-size: 12px; font-weight: 500; color: #374151; margin-bottom: 4px;
+    }
+    .settings-field input[type="text"] {
+      width: 100%; padding: 8px 10px; border: 1px solid #d1d5db; border-radius: 8px;
+      font-size: 13px; font-family: inherit; background: #fff; color: #1f2937;
+      transition: border-color 0.2s;
+    }
+    .settings-field input:focus { outline: none; border-color: #3b82f6; }
+    .settings-field .hint {
+      font-size: 11px; color: #6b7280; margin-top: 4px; line-height: 1.4;
+    }
+    .settings-actions {
+      display: flex; gap: 8px; margin-top: 12px; justify-content: flex-end; align-items: center;
+    }
+    .settings-save-btn {
+      padding: 8px 18px;
+      background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+      color: white; border: none; border-radius: 8px; font-size: 13px; font-weight: 600;
+      cursor: pointer; transition: all 0.2s;
+    }
+    .settings-save-btn:hover { transform: translateY(-1px); box-shadow: 0 2px 8px rgba(59,130,246,0.3); }
+    .settings-saved-msg {
+      font-size: 12px; color: #059669; font-weight: 600;
+      opacity: 0; transition: opacity 0.3s;
+    }
+    .settings-saved-msg.show { opacity: 1; }
+
+    /* ===== Install Helper ===== */
+    .install-cmd-block {
+      position: relative; background: #0b1020; color: #e2e8f0;
+      border-radius: 8px; padding: 12px 14px; margin: 10px 0;
+      font-family: 'Cascadia Code','Consolas',monospace; font-size: 12px;
+      line-height: 1.5; white-space: pre-wrap; word-break: break-all;
+    }
+    .install-copy-btn {
+      position: absolute; top: 8px; right: 8px;
+      padding: 4px 10px; font-size: 11px; font-weight: 600;
+      background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+      color: white; border: none; border-radius: 6px; cursor: pointer;
+      transition: opacity 0.2s;
+    }
+    .install-copy-btn:hover { opacity: 0.85; }
+    .install-steps { margin: 8px 0 0; padding-left: 18px; font-size: 13px; color: #374151; line-height: 1.7; }
+    .install-steps li { margin: 2px 0; }
+    .install-steps code {
+      background: #f3f4f6; padding: 1px 5px; border-radius: 4px;
+      font-family: 'Cascadia Code','Consolas',monospace; font-size: 12px; color: #6d28d9;
+    }
+
+    /* ===== Modal ===== */
+    .modal {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,0.5); z-index: 1000;
+      align-items: center; justify-content: center;
+    }
+    .modal.show { display: flex; }
+    .modal-content {
+      background: white; border-radius: 12px;
+      width: 90%; max-width: 500px; max-height: 80vh;
+      display: flex; flex-direction: column;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+    }
+    .modal-header {
+      padding: 16px 20px; border-bottom: 1px solid #e5e7eb;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .modal-header h3 { margin: 0; font-size: 16px; font-weight: 600; color: #1f2937; }
+    .modal-close {
+      background: none; border: none; font-size: 24px; color: #9ca3af; cursor: pointer;
+      padding: 0; width: 28px; height: 28px; display: flex; align-items: center;
+      justify-content: center; border-radius: 6px; transition: all 0.2s;
+    }
+    .modal-close:hover { background: #f3f4f6; color: #1f2937; }
+    .modal-body { padding: 20px; overflow-y: auto; flex: 1; }
+    .modal-hint { margin-bottom: 12px; font-size: 13px; color: #6b7280; line-height: 1.5; }
+    .modal-hint code {
+      background: #f3f4f6; padding: 2px 6px; border-radius: 4px;
+      font-family: 'Cascadia Code','Consolas',monospace; font-size: 12px; color: #6d28d9;
+    }
+    .modal-input {
+      width: 100%; padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 8px;
+      font-size: 14px; color: #1f2937; outline: none; transition: border-color 0.2s;
+    }
+    .modal-input:focus { border-color: #3b82f6; box-shadow: 0 0 0 2px rgba(59,130,246,0.15); }
+    .modal-actions { margin-top: 16px; display: flex; justify-content: flex-end; gap: 8px; }
+    .modal-btn-cancel {
+      padding: 8px 16px; border: 1px solid #d1d5db; background: white;
+      border-radius: 8px; cursor: pointer; font-size: 13px; color: #374151;
+      transition: background 0.2s;
+    }
+    .modal-btn-cancel:hover { background: #f3f4f6; }
+    .modal-btn-confirm {
+      padding: 8px 16px;
+      background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+      color: white; border: none; border-radius: 8px;
+      cursor: pointer; font-size: 13px; font-weight: 600; transition: opacity 0.2s;
+    }
+    .modal-btn-confirm:hover { opacity: 0.9; }
+  </style>
+</head>
+<body>
+  <!-- Header -->
+  <div class="header-bar">
+    <div class="header-title" id="headerTitle" title="Click to set API key">🔑 BSOD Analyzer</div>
+    <div class="header-controls">
+      <button class="header-btn" id="clearBtn" data-i18n="clear">Clear</button>
+      <select class="model-selector" id="modelSelect"></select>
+      <select class="language-selector" id="languageSelect">
+        <option value="zh-TW">繁</option>
+        <option value="zh-CN">简</option>
+        <option value="en">EN</option>
+      </select>
+      <button class="header-btn icon-btn" id="settingsBtn" title="Settings">⚙️</button>
+    </div>
+  </div>
+
+  <!-- Settings Panel -->
+  <div class="settings-panel" id="settingsPanel">
+    <div class="settings-section-title" data-i18n="settings-tools">Debugger Tools</div>
+    <div class="settings-field">
+      <label for="settingsToolPath" data-i18n="settings-tool-path">Debugger tool path</label>
+      <input type="text" id="settingsToolPath" placeholder="C:\\Program Files (x86)\\Windows Kits\\10\\Debuggers\\x64\\kd.exe">
+      <div class="hint" data-i18n="settings-tool-path-hint">Path to kd.exe. windbg.exe lives in the same folder; kd.exe is what the native host invokes.</div>
+    </div>
+    <div class="settings-field">
+      <label for="settingsSymbolPath" data-i18n="settings-symbol-path">Symbol path (_NT_SYMBOL_PATH)</label>
+      <input type="text" id="settingsSymbolPath" placeholder="srv*C:\\symbols*https://msdl.microsoft.com/download/symbols">
+    </div>
+    <div class="settings-field">
+      <label for="settingsProxy" data-i18n="settings-proxy">Proxy (for symbol server, optional)</label>
+      <input type="text" id="settingsProxy" placeholder="http://proxy-dmz.intel.com:912">
+    </div>
+
+    <div class="settings-actions">
+      <span class="settings-saved-msg" id="settingsSavedMsg" data-i18n="settings-saved">✓ Saved</span>
+      <button class="settings-save-btn" id="settingsSaveBtn" data-i18n="settings-save">Save</button>
+    </div>
+  </div>
+
+  <!-- Status -->
+  <div class="status-bar">
+    <span class="status-indicator" id="statusDot"></span>
+    <span id="statusText">Ready</span>
+  </div>
+
+  <!-- Native Host Bar -->
+  <div class="host-bar" id="backendBar">
+    <span class="status-indicator" id="backendDot"></span>
+    <span id="backendText" data-i18n="host-checking">Checking native host...</span>
+  </div>
+
+  <!-- Main -->
+  <div class="main-container">
+    <div class="messages-container" id="messagesContainer" style="position:relative">
+
+      <!-- Dump Pick Zone (scrolls with messages) -->
+      <div class="file-drop-zone" id="dumpDropZone">
+        <input type="file" id="dumpFileInput" accept=".dmp,.mdmp">
+        <button class="file-drop-zone-remove" id="dumpRemoveBtn" title="Remove">✕</button>
+        <div class="file-drop-zone-icon" id="dumpDropIcon">💥</div>
+        <div class="file-drop-zone-label" data-i18n="pick-dump">Pick MEMORY.DMP</div>
+        <div class="file-drop-zone-hint" data-i18n="pick-dump-hint">Click or drop to open the file browser</div>
+        <div class="file-drop-zone-filename" id="dumpFileName" style="display:none"></div>
+      </div>
+
+      <div class="empty-state">
+        <div class="empty-state-icon">🔑</div>
+        <div class="empty-state-title" data-i18n="empty-title">BSOD Analyzer</div>
+        <div class="empty-state-text" data-i18n="empty-text">Pick a MEMORY.DMP above, then click a quick-analysis button or ask your own question. Click the title to set your GNAI API key.</div>
+      </div>
+    </div>
+
+    <div class="input-container">
+      <textarea id="messageInput" rows="1" data-i18n-placeholder="input-placeholder" placeholder="Ask about the crash... (e.g. explain the call stack)"></textarea>
+      <button id="sendBtn" data-i18n="send">Send</button>
+    </div>
+  </div>
+
+  <!-- API Key Modal -->
+  <div id="apiKeyModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 data-i18n="apikey-modal-title">Set GNAI API Key</h3>
+        <button class="modal-close" id="closeApiKeyModal">✕</button>
+      </div>
+      <div class="modal-body">
+        <p class="modal-hint" data-i18n="apikey-modal-hint">Please enter your GNAI API Key.</p>
+        <input type="text" id="apiKeyInput" class="modal-input" placeholder="eyJhbGciOiJIUzI1NiIs..." spellcheck="false" autocomplete="off" />
+        <div class="modal-actions">
+          <button id="apiKeyCancelBtn" class="modal-btn-cancel" data-i18n="apikey-cancel">Cancel</button>
+          <button id="apiKeyConfirmBtn" class="modal-btn-confirm" data-i18n="apikey-confirm">Confirm</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Install Helper Modal -->
+  <div id="installModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>🔧 Native Host Setup</h3>
+        <button class="modal-close" id="closeInstallModal">✕</button>
+      </div>
+      <div class="modal-body">
+        <p class="modal-hint">Native messaging host not found. Run the command below in PowerShell once to register it.</p>
+        <ol class="install-steps">
+          <li>Open <strong>PowerShell</strong> (no admin needed).</li>
+          <li>CD (<strong>Change Directory</strong>) to the BSOD Analyzer extension folder location.</li>
+          <li>Copy &amp; paste the command below and press Enter.</li>
+          <li>Reload this extension (<code>chrome://extensions</code>) if prompted.</li>
+        </ol>
+        <div class="install-cmd-block" id="installCmdBlock"><button class="install-copy-btn" id="installCopyBtn">Copy</button><span id="installCmdText"></span></div>
+        <div class="modal-actions">
+          <button id="installRetryBtn" class="modal-btn-confirm">Retry</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Saved Prompts Modal -->
+  <div id="savedPromptsModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 data-i18n="saved-prompts-title">Saved Prompts Manager</h3>
+        <button class="modal-close" id="closeSavedPromptsModal">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="saved-prompts-list" id="savedPromptsList"></div>
+        <div class="add-prompt-section">
+          <textarea id="newPromptInput" data-i18n-placeholder="new-prompt-placeholder" placeholder="Enter a new prompt..." rows="3"></textarea>
+          <button id="addPromptBtn" class="add-prompt-btn" data-i18n="add-prompt">Add Prompt</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="sidepanel.js"></script>
+</body>
+</html>
