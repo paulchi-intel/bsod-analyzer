@@ -14,6 +14,11 @@ Install **Debugging Tools for Windows** (part of the Windows SDK):
 C:\Program Files (x86)\Windows Kits\10\Debuggers\x64\kd.exe
 ```
 
+Install **Python 3** (required by the native messaging host):
+
+- Download from https://www.python.org/downloads/
+- During installation, check **"Add Python to PATH"**
+
 ### 2. Load the extension
 
 1. Open `chrome://extensions/` → enable **Developer mode**.
